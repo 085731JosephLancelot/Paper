@@ -1,69 +1,83 @@
-import org.gradle.api.tasks.testing.logging.TestExceptionFormat
-import org.gradle.api.tasks.testing.logging.TestLogEvent
+import io.papermc.paperweight.util.constants.*
 
 plugins {
-    id("io.papermc.paperweight.core") version "2.0.0-SNAPSHOT" apply false
-}
-
-subprojects {
-    apply(plugin = "java-library")
-    apply(plugin = "maven-publish")
-
-    extensions.configure<JavaPluginExtension> {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(25)
-        }
-    }
+    java
+    `maven-publish`
+    id("io.papermc.paperweight.patcher") version "1.7.1"
 }
 
 val paperMavenPublicUrl = "https://repo.papermc.io/repository/maven-public/"
 
-subprojects {
-    tasks.withType<JavaCompile>().configureEach {
-        options.encoding = Charsets.UTF_8.name()
-        options.release = 25
-        options.isFork = true
-        options.compilerArgs.addAll(listOf("-Xlint:-deprecation", "-Xlint:-removal"))
+repositories {
+    mavenCentral()
+    maven(paperMavenPublicUrl) {
+        content { onlyForConfigurations(PAPERCLIP_CONFIG) }
     }
-    tasks.withType<Javadoc>().configureEach {
-        options.encoding = Charsets.UTF_8.name()
-    }
-    tasks.withType<ProcessResources>().configureEach {
-        filteringCharset = Charsets.UTF_8.name()
-    }
-    tasks.withType<Test>().configureEach {
-        testLogging {
-            showStackTraces = true
-            exceptionFormat = TestExceptionFormat.FULL
-            events(TestLogEvent.STANDARD_OUT)
+}
+
+dependencies {
+    remapper("net.fabricmc:tiny-remapper:0.10.3:fat")
+    decompiler("org.vineflower:vineflower:1.10.1")
+    paperclip("io.papermc:paperclip:3.0.3")
+}
+
+allprojects {
+    apply(plugin = "java")
+    apply(plugin = "maven-publish")
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
         }
+    }
+}
+
+subprojects {
+    tasks.withType<JavaCompile> {
+        options.encoding = "UTF-8"
+        options.release = 21
+    }
+    tasks.withType<Javadoc> {
+        options.encoding = "UTF-8"
+    }
+    tasks.withType<ProcessResources> {
+        filteringCharset = "UTF-8"
     }
 
     repositories {
         mavenCentral()
         maven(paperMavenPublicUrl)
     }
+}
 
-    extensions.configure<PublishingExtension> {
-        repositories {
-            maven("https://artifactory.papermc.io/artifactory/releases/") {
-                name = "paperReleases"
-                credentials(PasswordCredentials::class)
-            }
+paperweight {
+    serverProject = project(":paper-server")
+
+    remapRepo = paperMavenPublicUrl
+    decompileRepo = paperMavenPublicUrl
+
+    usePaperUpstream(providers.gradleProperty("paperRef")) {
+        withPaperPatcher {
+            apiPatchDir = layout.projectDirectory.dir("patches/api")
+            apiOutputDir = layout.projectDirectory.dir("paper-api")
+
+            serverPatchDir = layout.projectDirectory.dir("patches/server")
+            serverOutputDir = layout.projectDirectory.dir("paper-server")
+        }
+        patchTasks.register("generatedApi") {
+            isBareDirectory = true
+            upstreamDirPath = "paper-api-generator/generated"
+            patchDir = layout.projectDirectory.dir("patches/generatedApi")
+            outputDir = layout.projectDirectory.dir("paper-api-generator/generated")
         }
     }
 }
 
-tasks.register("printMinecraftVersion") {
-    val mcVersion = providers.gradleProperty("mcVersion")
-    doLast {
-        println(mcVersion.get().trim())
-    }
-}
-
-tasks.register("printPaperVersion") {
-    val paperVersion = provider { project.version }
-    doLast {
-        println(paperVersion.get())
-    }
+tasks.generateDevelopmentBundle {
+    apiCoordinates = "io.papermc.paper:paper-api"
+    mojangApiCoordinates = "io.papermc.paper:paper-mojangapi"
+    libraryRepositories = listOf(
+        "https://repo.maven.apache.org/maven2/",
+        paperMavenPublicUrl,
+    )
 }
