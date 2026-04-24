@@ -19,10 +19,14 @@ val isCi = System.getenv("CI") != null
 buildCache {
     local {
         isEnabled = !isCi
+        // Keep up to 500MB of build cache entries locally
+        removeUnusedEntriesAfterDays = 14
     }
 }
 
 // Configure Gradle Enterprise / Develocity if available
 if (isCi) {
     logger.lifecycle("CI environment detected, local build cache disabled.")
+} else {
+    logger.lifecycle("Local build cache enabled (entries expire after 14 days).")
 }
