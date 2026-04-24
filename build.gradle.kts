@@ -36,6 +36,9 @@ subprojects {
     tasks.withType<JavaCompile> {
         options.encoding = "UTF-8"
         options.release = 21
+        // Enable all warnings to catch potential issues during local development
+        options.compilerArgs.add("-Xlint:all")
+        options.compilerArgs.add("-Xlint:-processing")
     }
     tasks.withType<Javadoc> {
         options.encoding = "UTF-8"
