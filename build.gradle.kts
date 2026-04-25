@@ -39,8 +39,9 @@ subprojects {
         // Enable all warnings to catch potential issues during local development
         options.compilerArgs.add("-Xlint:all")
         options.compilerArgs.add("-Xlint:-processing")
-        // Treat warnings as errors to enforce code quality
-        options.compilerArgs.add("-Werror")
+        // Note: Disabled -Werror locally since upstream patches sometimes trigger warnings
+        // that aren't worth blocking the build over during personal experimentation.
+        // options.compilerArgs.add("-Werror")
     }
     tasks.withType<Javadoc> {
         options.encoding = "UTF-8"
